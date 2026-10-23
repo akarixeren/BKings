@@ -901,7 +901,7 @@
 
                         <Border Grid.Column="4" Background="#110E17" BorderBrush="#251F30" BorderThickness="1" CornerRadius="8" Padding="12,10">
                             <StackPanel>
-                                <TextBlock Text="TOTAL REVENUE" FontSize="9.5" FontWeight="Bold" Foreground="#8C849C"/>
+                                <TextBlock Text="TOTAL REVENUE" FontSize="9.5" FontWeight="Bold" Foreground="#10B981" Margin="0,4,0,0"/>
                                 <TextBlock x:Name="lblHistRevenue" Text="₱0.00" FontSize="16" FontWeight="Bold" Foreground="#10B981" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
@@ -1144,7 +1144,16 @@
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Unit Cost Price *" FontSize="12" Foreground="#8C849C" Margin="0,0,0,4"/>
                             <Border x:Name="bdrProdCost" Background="#0F0C15" BorderBrush="#251F30" BorderThickness="1" CornerRadius="6" Height="36" Padding="8,0">
-                                <TextBox x:Name="txtProdCost" Text="0.00" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#FFFFFF" VerticalContentAlignment="Center" PreviewTextInput="TxtDecimal_PreviewTextInput" TextChanged="TxtProdCost_TextChanged"/>
+                                <TextBox x:Name="txtProdCost" 
+                                         Text="0.00" 
+                                         Background="Transparent" 
+                                         BorderThickness="0" 
+                                         Foreground="#FFFFFF" 
+                                         CaretBrush="#FFFFFF" 
+                                         VerticalContentAlignment="Center" 
+                                         PreviewTextInput="TxtDecimal_PreviewTextInput" 
+                                         PreviewKeyDown="TxtInteger_PreviewKeyDown"
+                                         TextChanged="TxtDecimal_TextChanged"/>
                             </Border>
                             <TextBlock x:Name="errProdCost" Text="Invalid cost." Foreground="#EF4444" FontSize="10" Visibility="Collapsed" Margin="0,2,0,0"/>
                         </StackPanel>
@@ -1152,7 +1161,16 @@
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Selling Price *" FontSize="12" Foreground="#8C849C" Margin="0,0,0,4"/>
                             <Border x:Name="bdrProdPrice" Background="#0F0C15" BorderBrush="#251F30" BorderThickness="1" CornerRadius="6" Height="36" Padding="8,0">
-                                <TextBox x:Name="txtProdPrice" Text="0.00" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#FFFFFF" VerticalContentAlignment="Center" PreviewTextInput="TxtDecimal_PreviewTextInput" TextChanged="TxtProdPrice_TextChanged"/>
+                                <TextBox x:Name="txtProdPrice" 
+                                         Text="0.00" 
+                                         Background="Transparent" 
+                                         BorderThickness="0" 
+                                         Foreground="#FFFFFF" 
+                                         CaretBrush="#FFFFFF" 
+                                         VerticalContentAlignment="Center" 
+                                         PreviewTextInput="TxtDecimal_PreviewTextInput" 
+                                         PreviewKeyDown="TxtInteger_PreviewKeyDown"
+                                         TextChanged="TxtDecimal_TextChanged"/>
                             </Border>
                             <TextBlock x:Name="errProdPrice" Text="Invalid price." Foreground="#EF4444" FontSize="10" Visibility="Collapsed" Margin="0,2,0,0"/>
                         </StackPanel>
@@ -1160,7 +1178,16 @@
                         <StackPanel Grid.Column="4">
                             <TextBlock Text="Initial Stock *" FontSize="12" Foreground="#8C849C" Margin="0,0,0,4"/>
                             <Border x:Name="bdrProdStock" Background="#0F0C15" BorderBrush="#251F30" BorderThickness="1" CornerRadius="6" Height="36" Padding="8,0">
-                                <TextBox x:Name="txtProdStock" Text="0" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#FFFFFF" VerticalContentAlignment="Center" PreviewTextInput="TxtInteger_PreviewTextInput" TextChanged="TxtProdStock_TextChanged"/>
+                                <TextBox x:Name="txtProdStock" 
+                                         Text="0" 
+                                         Background="Transparent" 
+                                         BorderThickness="0" 
+                                         Foreground="#FFFFFF" 
+                                         CaretBrush="#FFFFFF" 
+                                         VerticalContentAlignment="Center" 
+                                         PreviewTextInput="TxtInteger_PreviewTextInput" 
+                                         PreviewKeyDown="TxtInteger_PreviewKeyDown"
+                                         TextChanged="TxtInteger_TextChanged"/>
                             </Border>
                             <TextBlock x:Name="errProdStock" Text="Invalid stock." Foreground="#EF4444" FontSize="10" Visibility="Collapsed" Margin="0,2,0,0"/>
                         </StackPanel>
@@ -1168,7 +1195,16 @@
                         <StackPanel Grid.Column="6">
                             <TextBlock Text="Reorder Point *" FontSize="12" Foreground="#8C849C" Margin="0,0,0,4"/>
                             <Border x:Name="bdrProdReorder" Background="#0F0C15" BorderBrush="#251F30" BorderThickness="1" CornerRadius="6" Height="36" Padding="8,0">
-                                <TextBox x:Name="txtProdReorder" Text="5" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#FFFFFF" VerticalContentAlignment="Center" PreviewTextInput="TxtInteger_PreviewTextInput" TextChanged="TxtProdReorder_TextChanged"/>
+                                <TextBox x:Name="txtProdReorder" 
+                                         Text="5" 
+                                         Background="Transparent" 
+                                         BorderThickness="0" 
+                                         Foreground="#FFFFFF" 
+                                         CaretBrush="#FFFFFF" 
+                                         VerticalContentAlignment="Center" 
+                                         PreviewTextInput="TxtInteger_PreviewTextInput" 
+                                         PreviewKeyDown="TxtInteger_PreviewKeyDown"
+                                         TextChanged="TxtInteger_TextChanged"/>
                             </Border>
                             <TextBlock x:Name="errProdReorder" Text="Invalid level." Foreground="#EF4444" FontSize="10" Visibility="Collapsed" Margin="0,2,0,0"/>
                         </StackPanel>
@@ -1224,7 +1260,17 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Quantity Received *" FontSize="12" Foreground="#8C849C" Margin="0,0,0,4"/>
-                            <TextBox x:Name="txtStockInQty" Text="1" Height="36" Background="#0F0C15" Foreground="#FFFFFF" BorderBrush="#251F30" Padding="8,0" VerticalContentAlignment="Center"/>
+                            <TextBox x:Name="txtStockInQty" 
+                                     Text="1" 
+                                     Height="36" 
+                                     Background="#0F0C15" 
+                                     Foreground="#FFFFFF" 
+                                     BorderBrush="#251F30" 
+                                     Padding="8,0" 
+                                     VerticalContentAlignment="Center"
+                                     PreviewTextInput="TxtInteger_PreviewTextInput"
+                                     PreviewKeyDown="TxtInteger_PreviewKeyDown"
+                                     TextChanged="TxtInteger_TextChanged"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Reference / Invoice #" FontSize="12" Foreground="#8C849C" Margin="0,0,0,4"/>
@@ -1282,7 +1328,17 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Quantity to Deduct *" FontSize="12" Foreground="#8C849C" Margin="0,0,0,4"/>
-                            <TextBox x:Name="txtStockOutQty" Text="1" Height="36" Background="#0F0C15" Foreground="#FFFFFF" BorderBrush="#251F30" Padding="8,0" VerticalContentAlignment="Center"/>
+                            <TextBox x:Name="txtStockOutQty" 
+                                     Text="1" 
+                                     Height="36" 
+                                     Background="#0F0C15" 
+                                     Foreground="#FFFFFF" 
+                                     BorderBrush="#251F30" 
+                                     Padding="8,0" 
+                                     VerticalContentAlignment="Center"
+                                     PreviewTextInput="TxtStockOutQty_PreviewTextInput"
+                                     PreviewKeyDown="TxtInteger_PreviewKeyDown"
+                                     TextChanged="TxtStockOutQty_TextChanged"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Reason for Deduction *" FontSize="12" Foreground="#8C849C" Margin="0,0,0,4"/>
@@ -1340,7 +1396,20 @@
 
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Vendor / Supplier *" FontSize="12" Foreground="#8C849C" Margin="0,0,0,4"/>
-                            <ComboBox x:Name="cmbPOSupplier" Height="36" IsEditable="True" IsTextSearchEnabled="False" PreviewKeyDown="CmbSearch_PreviewKeyDown" TextBoxBase.TextChanged="CmbSearch_TextChanged" DropDownOpened="CmbSearch_DropDownOpened" DropDownClosed="CmbSearch_DropDownClosed" Background="#0F0C15" Foreground="#FFFFFF" BorderBrush="#251F30" DisplayMemberPath="DisplayName" SelectedValuePath="SupplierID"/>
+                            <ComboBox x:Name="cmbPOSupplier" 
+                                      Height="36" 
+                                      IsEditable="True" 
+                                      IsTextSearchEnabled="False" 
+                                      PreviewKeyDown="CmbSearch_PreviewKeyDown" 
+                                      TextBoxBase.TextChanged="CmbSearch_TextChanged" 
+                                      DropDownOpened="CmbSearch_DropDownOpened" 
+                                      DropDownClosed="CmbSearch_DropDownClosed" 
+                                      Background="#0F0C15" 
+                                      Foreground="#FFFFFF" 
+                                      BorderBrush="#251F30" 
+                                      DisplayMemberPath="DisplayName" 
+                                      SelectedValuePath="SupplierID"
+                                      SelectionChanged="CmbPOSupplier_SelectionChanged"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
@@ -1367,8 +1436,35 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <ComboBox Grid.Column="0" x:Name="cmbPOProduct" Height="34" IsEditable="True" IsTextSearchEnabled="False" PreviewKeyDown="CmbSearch_PreviewKeyDown" TextBoxBase.TextChanged="CmbSearch_TextChanged" DropDownOpened="CmbSearch_DropDownOpened" DropDownClosed="CmbSearch_DropDownClosed" Background="#0F0C15" Foreground="#FFFFFF" BorderBrush="#251F30" DisplayMemberPath="ProductName" SelectedValuePath="ProductID" SelectionChanged="CmbPOProduct_SelectionChanged"/>
-                                <TextBox Grid.Column="2" x:Name="txtPOQty" Text="10" Height="34" Background="#0F0C15" Foreground="#FFFFFF" BorderBrush="#251F30" Padding="6,0" VerticalContentAlignment="Center"/>
-                                <TextBox Grid.Column="4" x:Name="txtPOUnitPrice" Text="0.00" Height="34" Background="#0F0C15" Foreground="#FFFFFF" BorderBrush="#251F30" Padding="6,0" VerticalContentAlignment="Center"/>
+
+                                <!-- PO Line Item Quantity -->
+                                <TextBox Grid.Column="2" 
+                                         x:Name="txtPOQty" 
+                                         Text="10" 
+                                         Height="34" 
+                                         Background="#0F0C15" 
+                                         Foreground="#FFFFFF" 
+                                         BorderBrush="#251F30" 
+                                         Padding="6,0" 
+                                         VerticalContentAlignment="Center"
+                                         PreviewTextInput="TxtInteger_PreviewTextInput"
+                                         PreviewKeyDown="TxtInteger_PreviewKeyDown"
+                                         TextChanged="TxtInteger_TextChanged"/>
+
+                                <!-- PO Line Item Unit Price (Locked: Read-Only) -->
+                                <TextBox Grid.Column="4" 
+         x:Name="txtPOUnitPrice" 
+         Text="0.00" 
+         Height="34" 
+         IsReadOnly="True" 
+         Focusable="False" 
+         Background="#161220" 
+         Foreground="#94A3B8" 
+         BorderBrush="#251F30" 
+         Padding="6,0" 
+         VerticalContentAlignment="Center"
+         ToolTip="Unit price is locked to the product master cost price."/>
+
                                 <Button Grid.Column="6" Content="+ Add" Click="BtnPOAddItem_Click" Background="#0284C7" Foreground="#FFFFFF" FontWeight="Bold" Height="34" Padding="14,0" BorderThickness="0" Cursor="Hand">
                                     <Button.Resources>
                                         <Style TargetType="Border">
@@ -1634,8 +1730,35 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <ComboBox Grid.Column="0" x:Name="cmbEditPOProduct" Height="34" IsEditable="True" IsTextSearchEnabled="False" PreviewKeyDown="CmbSearch_PreviewKeyDown" TextBoxBase.TextChanged="CmbSearch_TextChanged" DropDownOpened="CmbSearch_DropDownOpened" DropDownClosed="CmbSearch_DropDownClosed" Background="#0F0C15" Foreground="#FFFFFF" BorderBrush="#251F30" DisplayMemberPath="ProductName" SelectedValuePath="ProductID" SelectionChanged="CmbEditPOProduct_SelectionChanged"/>
-                            <TextBox Grid.Column="2" x:Name="txtEditPOQty" Text="10" Height="34" Background="#0F0C15" Foreground="#FFFFFF" BorderBrush="#251F30" Padding="6,0" VerticalContentAlignment="Center"/>
-                            <TextBox Grid.Column="4" x:Name="txtEditPOUnitPrice" Text="0.00" Height="34" Background="#0F0C15" Foreground="#FFFFFF" BorderBrush="#251F30" Padding="6,0" VerticalContentAlignment="Center"/>
+
+                            <!-- Edit PO Line Item Quantity -->
+                            <TextBox Grid.Column="2" 
+                                     x:Name="txtEditPOQty" 
+                                     Text="10" 
+                                     Height="34" 
+                                     Background="#0F0C15" 
+                                     Foreground="#FFFFFF" 
+                                     BorderBrush="#251F30" 
+                                     Padding="6,0" 
+                                     VerticalContentAlignment="Center"
+                                     PreviewTextInput="TxtInteger_PreviewTextInput"
+                                     PreviewKeyDown="TxtInteger_PreviewKeyDown"
+                                     TextChanged="TxtInteger_TextChanged"/>
+
+                            <!-- Edit PO Line Item Unit Price -->
+                            <TextBox Grid.Column="4" 
+                                     x:Name="txtEditPOUnitPrice" 
+                                     Text="0.00" 
+                                     Height="34" 
+                                     Background="#0F0C15" 
+                                     Foreground="#FFFFFF" 
+                                     BorderBrush="#251F30" 
+                                     Padding="6,0" 
+                                     VerticalContentAlignment="Center"
+                                     PreviewTextInput="TxtDecimal_PreviewTextInput"
+                                     PreviewKeyDown="TxtInteger_PreviewKeyDown"
+                                     TextChanged="TxtDecimal_TextChanged"/>
+
                             <Button Grid.Column="6" Content="+ Add" Click="BtnEditPOAddItem_Click" Background="#F59E0B" Foreground="#000000" FontWeight="Bold" Height="34" Padding="14,0" BorderThickness="0" Cursor="Hand">
                                 <Button.Resources>
                                     <Style TargetType="Border">

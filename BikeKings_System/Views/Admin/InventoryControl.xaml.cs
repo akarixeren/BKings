@@ -591,6 +591,18 @@ namespace BikeKings_System.Views.Admin
                 }
             }
 
+            // ✅ Filter Add Line Item products to only this supplier's roster
+            FilterPOProductsBySupplier(cmbPOSupplier?.SelectedValue as int?);
+
+            txtPOQty.Text = "1";
+            txtPOUnitPrice.Text = "0.00";
+            if (cmbPOTerms != null) cmbPOTerms.SelectedIndex = 1;
+            txtPONotes.Text = $"Restock order for {_selectedProductForDetails.ProductName} ({_selectedProductForDetails.SKU})";
+
+            RefreshCreatePOGrid();
+
+            if (modalPO != null) modalPO.Visibility = Visibility.Visible;
+
             // 5. Populate default notes & reset entry line
             if (cmbPOProduct != null)
             {
@@ -955,23 +967,76 @@ namespace BikeKings_System.Views.Admin
         // =========================================================================
         private void AutoUpdateProductSKU()
         {
-            if (_editingProductId.HasValue || _isManualSku) return;
+            if (_editingProductId.HasValue || _isManualSku)
+                return;
 
-            string catName = (cmbProdCategory?.SelectedItem as CategoryModel)?.CategoryName;
-            if (string.IsNullOrWhiteSpace(catName)) catName = cmbProdCategory?.Text?.Trim();
-            if (string.IsNullOrWhiteSpace(catName)) catName = "PRD";
+            string productName = txtProdName?.Text?.Trim() ?? "";
 
-            string brandName = (cmbProdBrand?.SelectedItem as BrandModel)?.BrandName;
-            if (string.IsNullOrWhiteSpace(brandName)) brandName = cmbProdBrand?.Text?.Trim();
-            if (string.IsNullOrWhiteSpace(brandName)) brandName = "GEN";
+            string category = (cmbProdCategory?.SelectedItem as CategoryModel)
+                ?.CategoryName ?? "";
 
-            string prodName = txtProdName?.Text?.Trim() ?? "";
+            string brand = (cmbProdBrand?.SelectedItem as BrandModel)
+                ?.BrandName ?? "";
 
-            string autoSku = InventoryService.GenerateSKU(catName, brandName, prodName);
-            if (txtProdBarcode != null && txtProdBarcode.Text != autoSku)
+            // Wait until all required fields are filled
+            if (string.IsNullOrWhiteSpace(productName) ||
+                string.IsNullOrWhiteSpace(category) ||
+                string.IsNullOrWhiteSpace(brand))
             {
-                txtProdBarcode.Text = autoSku;
+                txtProdBarcode.Text = "";
+                return;
             }
+
+            string GetCode(string value, int length)
+            {
+                string cleaned = Regex.Replace(
+                    value.ToUpper(), @"[^A-Z0-9]", "");
+
+                return cleaned.Length >= length
+                    ? cleaned.Substring(0, length)
+                    : cleaned.PadRight(length, 'X');
+            }
+
+            string categoryCode = GetCode(category, 3);
+            string brandCode = GetCode(brand, 3);
+            string productCode = GetCode(productName, 3);
+
+            string prefix = $"{categoryCode}-{brandCode}-{productCode}";
+
+            int number = 1;
+            string generatedSku;
+
+            do
+            {
+                generatedSku = $"{prefix}-{number:D3}";
+                number++;
+            }
+            while (_allProducts != null &&
+                   _allProducts.Any(p =>
+                       string.Equals(
+                           p.SKU,
+                           generatedSku,
+                           StringComparison.OrdinalIgnoreCase)));
+
+            txtProdBarcode.Text = generatedSku;
+        }
+
+        private void TxtProdName_TextChanged(
+    object sender, TextChangedEventArgs e)
+        {
+            AutoUpdateProductSKU();
+        }
+
+        private void CmbProdCategory_SelectionChanged(
+            object sender, SelectionChangedEventArgs e)
+        {
+            AutoUpdateProductSKU();
+        }
+
+        private void CmbProdBrand_SelectionChanged(
+            object sender, SelectionChangedEventArgs e)
+        {
+            AutoUpdateProductSKU();
         }
         private void BtnAddProduct_Click(object sender, RoutedEventArgs e)
         {
@@ -1141,20 +1206,45 @@ namespace BikeKings_System.Views.Admin
             {
                 success = InventoryService.AddProduct(sku, name, catId, brandId, cost, price, initialStock, reorder, out errorMsg, supplierId, imagePath);
             }
+
             if (success)
             {
-                // ✅ Add this:
                 if (_editingProductId.HasValue)
-                    AuditLogService.Log("INVENTORY", $"Updated product '{name}' (SKU: {sku}, Price: ₱{price:N2}).");
+                    AuditLogService.Log("INVENTORY",
+                        $"Updated product '{name}' (SKU: {sku}, Price: ₱{price:N2}).");
                 else
-                    AuditLogService.Log("INVENTORY", $"Added new product '{name}' (SKU: {sku}, Initial Stock: {initialStock}).");
+                    AuditLogService.Log("INVENTORY",
+                        $"Added new product '{name}' (SKU: {sku}, Initial Stock: {initialStock}).");
 
-                MessageBox.Show(_editingProductId.HasValue ? "Product updated successfully." : "Product created successfully.", "Inventory Notice", MessageBoxButton.OK, MessageBoxImage.Information);
+                // Refresh the inventory masterlist from the database
+                LoadProducts();
+
+                // Refresh stock analytics and monitoring
+                LoadAnalytics();
+                LoadMonitoring();
+
+                // Close the Add/Edit Product modal
+                if (modalProduct != null)
+                    modalProduct.Visibility = Visibility.Collapsed;
+
+                // Reset editing state
+                _editingProductId = null;
+
+                MessageBox.Show(
+                    "Product saved successfully.",
+                    "Inventory Notice",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
             }
             else
             {
-                MessageBox.Show($"Failed to save product: {errorMsg}", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    $"Failed to save product: {errorMsg}",
+                    "Validation Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
+
         }
 
         private void BtnBrowseProductImage_Click(object sender, RoutedEventArgs e)
@@ -1472,6 +1562,82 @@ namespace BikeKings_System.Views.Admin
             {
                 lblStockOutCurrentQty.Text = p != null ? $"{p.StockQuantity} units" : "0 units";
             }
+
+            // If the entered quantity is already higher than this product's stock, clamp it
+            if (p != null && int.TryParse(txtStockOutQty?.Text?.Trim() ?? "", out int currentQty) && currentQty > p.StockQuantity)
+            {
+                txtStockOutQty.Text = Math.Max(1, p.StockQuantity).ToString();
+            }
+        }
+
+        // ── Helper: Get the available stock for the selected deduction product ──
+        private int? GetSelectedStockOutAvailableQty()
+        {
+            ProductItem p = cmbStockOutProduct?.SelectedItem as ProductItem;
+            if (p == null && !string.IsNullOrWhiteSpace(cmbStockOutProduct?.Text) && _allProducts != null)
+            {
+                p = _allProducts.FirstOrDefault(x =>
+                    string.Equals(x.ProductName, cmbStockOutProduct.Text.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(x.SKU, cmbStockOutProduct.Text.Trim(), StringComparison.OrdinalIgnoreCase));
+            }
+            return p != null ? Math.Max(0, p.StockQuantity) : null;
+        }
+
+        // ── 1. Blocks typing letters AND blocks numbers greater than stated stock ──
+        private void TxtStockOutQty_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            // Block non-digits immediately
+            if (_intFilter.IsMatch(e.Text))
+            {
+                e.Handled = true;
+                return;
+            }
+
+            // Predict the resulting quantity if this keypress were allowed
+            if (sender is TextBox tb)
+            {
+                string currentText = tb.Text ?? "";
+                int selStart = tb.SelectionStart;
+                int selLength = tb.SelectionLength;
+
+                string newText = currentText.Remove(selStart, selLength).Insert(selStart, e.Text);
+
+                if (int.TryParse(newText, out int newQty))
+                {
+                    int? maxStock = GetSelectedStockOutAvailableQty();
+                    if (maxStock.HasValue && newQty > maxStock.Value)
+                    {
+                        // ⛔ Block typing because it exceeds the stated available quantity!
+                        e.Handled = true;
+                    }
+                }
+            }
+        }
+
+        // ── 2. Sanitizes pastes & clamps any pasted number down to stated stock ──
+        private void TxtStockOutQty_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is not TextBox tb) return;
+
+            string raw = Regex.Replace(tb.Text ?? "", @"[^0-9]", "");
+
+            int? maxStock = GetSelectedStockOutAvailableQty();
+            if (maxStock.HasValue && int.TryParse(raw, out int qty))
+            {
+                // If a pasted or entered value exceeds available stock, auto-clamp to max
+                if (qty > maxStock.Value)
+                {
+                    tb.Text = maxStock.Value.ToString();
+                    tb.SelectionStart = tb.Text.Length;
+                    return;
+                }
+            }
+
+            if (tb.Text != raw)
+            {
+                tb.Text = raw;
+                tb.SelectionStart = tb.Text.Length;
+            }
         }
 
         private void BtnCancelStockOut_Click(object sender, RoutedEventArgs e)
@@ -1524,20 +1690,87 @@ namespace BikeKings_System.Views.Admin
             }
         }
 
+        private bool _isSyncingPOSupplierProduct = false;
+
+        private void FilterPOProductsBySupplier(int? supplierId)
+        {
+            if (cmbPOProduct == null) return;
+
+            var active = _allProducts?.Where(p => p.IsActive) ?? Enumerable.Empty<ProductItem>();
+
+            // If a supplier is selected, show only products assigned to that supplier
+            var filtered = (supplierId.HasValue && supplierId.Value > 0)
+                ? active.Where(p => p.SupplierID == supplierId.Value).ToList()
+                : active.ToList();
+
+            _isSyncingPOSupplierProduct = true;
+            try
+            {
+                var currentSelectedId = (cmbPOProduct.SelectedItem as ProductItem)?.ProductID
+                                        ?? (cmbPOProduct.SelectedValue as int?);
+
+                cmbPOProduct.ItemsSource = filtered;
+
+                // If the previously selected product belongs to this supplier, keep it selected; otherwise reset
+                if (currentSelectedId.HasValue && filtered.Any(p => p.ProductID == currentSelectedId.Value))
+                {
+                    cmbPOProduct.SelectedValue = currentSelectedId.Value;
+                }
+                else
+                {
+                    cmbPOProduct.SelectedIndex = -1;
+                    cmbPOProduct.Text = "";
+                    txtPOUnitPrice.Text = "0.00";
+                }
+
+                var view = System.Windows.Data.CollectionViewSource.GetDefaultView(cmbPOProduct.ItemsSource);
+                if (view != null) view.Filter = null;
+            }
+            finally
+            {
+                _isSyncingPOSupplierProduct = false;
+            }
+        }
+
+        private void CmbPOSupplier_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isSyncingPOSupplierProduct) return;
+
+            int? supplierId = null;
+            if (cmbPOSupplier.SelectedItem is SupplierModel s && s.SupplierID > 0)
+            {
+                supplierId = s.SupplierID;
+            }
+            else if (cmbPOSupplier.SelectedValue is int id && id > 0)
+            {
+                supplierId = id;
+            }
+            else if (int.TryParse(cmbPOSupplier.SelectedValue?.ToString(), out int parsedId) && parsedId > 0)
+            {
+                supplierId = parsedId;
+            }
+
+            FilterPOProductsBySupplier(supplierId);
+        }
+
         // =========================================================================
         // ── PURCHASE ORDER DRAFTING & SUBMISSION ──────────────────────────────────
         // =========================================================================
         private void BtnOpenCreatePO_Click(object sender, RoutedEventArgs e)
         {
             _createPOLineItems.Clear();
-            cmbPOSupplier.SelectedIndex = -1;
-            if (cmbPOProduct != null)
+
+            // Refresh supplier list to all active suppliers and unselect
+            if (cmbPOSupplier != null)
             {
-                var view = System.Windows.Data.CollectionViewSource.GetDefaultView(cmbPOProduct.ItemsSource);
-                if (view != null) view.Filter = null;
-                cmbPOProduct.SelectedIndex = -1;
-                cmbPOProduct.Text = "";
+                cmbPOSupplier.ItemsSource = GetSuppliersWithRecommendations();
+                cmbPOSupplier.SelectedIndex = -1;
+                cmbPOSupplier.Text = "";
             }
+
+            // Reset product list (shows all products until a supplier is chosen)
+            FilterPOProductsBySupplier(null);
+
             txtPOQty.Text = "1";
             txtPOUnitPrice.Text = "0.00";
             if (cmbPOTerms != null) cmbPOTerms.SelectedIndex = 1; // Default to Net 30
@@ -1548,11 +1781,13 @@ namespace BikeKings_System.Views.Admin
 
         private void CmbPOProduct_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_isSyncingPOSupplierProduct) return;
+
             if (cmbPOProduct.SelectedItem is ProductItem p)
             {
                 txtPOUnitPrice.Text = p.CostPrice.ToString("F2");
 
-                // Immediately lock the PO supplier dropdown to only this product's assigned supplier
+                // Lock supplier dropdown to this product's assigned supplier
                 if (p.SupplierID.HasValue && cmbPOSupplier != null)
                 {
                     var singleSupplierList = GetSuppliersWithRecommendations(new List<POLineItem>
@@ -1560,12 +1795,20 @@ namespace BikeKings_System.Views.Admin
                         new POLineItem { ProductID = p.ProductID }
                     });
 
-                    cmbPOSupplier.ItemsSource = singleSupplierList;
-                    if (singleSupplierList.Count > 0)
+                    _isSyncingPOSupplierProduct = true;
+                    try
                     {
-                        cmbPOSupplier.SelectedItem = singleSupplierList[0];
-                        cmbPOSupplier.SelectedValue = singleSupplierList[0].SupplierID;
-                        cmbPOSupplier.Text = singleSupplierList[0].DisplayName;
+                        cmbPOSupplier.ItemsSource = singleSupplierList;
+                        if (singleSupplierList.Count > 0)
+                        {
+                            cmbPOSupplier.SelectedItem = singleSupplierList[0];
+                            cmbPOSupplier.SelectedValue = singleSupplierList[0].SupplierID;
+                            cmbPOSupplier.Text = singleSupplierList[0].DisplayName;
+                        }
+                    }
+                    finally
+                    {
+                        _isSyncingPOSupplierProduct = false;
                     }
                 }
             }
@@ -1585,11 +1828,9 @@ namespace BikeKings_System.Views.Admin
                 return;
             }
 
-            if (!decimal.TryParse(txtPOUnitPrice.Text.Trim(), out decimal cost) || cost < 0)
-            {
-                MessageBox.Show("Enter a valid unit cost.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
+            // ✅ REPLACE WITH:
+            decimal cost = prod.CostPrice;
+            txtPOUnitPrice.Text = cost.ToString("F2");
 
             var existing = _createPOLineItems.FirstOrDefault(x => x.ProductID == prod.ProductID);
             if (existing != null)
@@ -2221,9 +2462,56 @@ namespace BikeKings_System.Views.Admin
             e.Handled = _numFilter.IsMatch(e.Text);
         }
 
+        // 1. Blocks typing letters and special characters in real-time
         private void TxtInteger_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = _intFilter.IsMatch(e.Text);
+        }
+
+        // 2. Blocks pressing the Spacebar
+        private void TxtInteger_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Space)
+            {
+                e.Handled = true;
+            }
+        }
+
+        // 3. Strips out letters and symbols if someone pastes (Ctrl+V) text into the box
+        private void TxtInteger_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox tb && !string.IsNullOrEmpty(tb.Text))
+            {
+                string clean = Regex.Replace(tb.Text, @"[^0-9]", "");
+                if (clean != tb.Text)
+                {
+                    tb.Text = clean;
+                    tb.SelectionStart = tb.Text.Length;
+                }
+            }
+        }
+
+        // Sanitizes decimal fields (Cost and Selling Price) against pasted letters and double dots
+        private void TxtDecimal_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox tb && !string.IsNullOrEmpty(tb.Text))
+            {
+                // Remove any character that isn't a digit or a decimal dot
+                string clean = Regex.Replace(tb.Text, @"[^0-9.]", "");
+
+                // Ensure at most one decimal point exists
+                int firstDot = clean.IndexOf('.');
+                if (firstDot >= 0)
+                {
+                    clean = clean.Substring(0, firstDot + 1) + clean.Substring(firstDot + 1).Replace(".", "");
+                }
+
+                if (clean != tb.Text)
+                {
+                    tb.Text = clean;
+                    tb.SelectionStart = tb.Text.Length;
+                }
+            }
         }
 
         // =========================================================================
@@ -2248,32 +2536,8 @@ namespace BikeKings_System.Views.Admin
         private void CmbFilter_SelectionChanged(object sender, SelectionChangedEventArgs e) => ApplyProductFilters();
         private void DgProducts_MouseDoubleClick(object sender, MouseButtonEventArgs e) => DgProducts_PreviewMouseLeftButtonUp(sender, e);
         private void TxtSearchHistory_TextChanged(object sender, TextChangedEventArgs e) => ApplyHistoryFilters();
-        private void CmbProdCategory_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (errProdCategory != null && errProdCategory.Visibility == Visibility.Visible)
-                HideError(errProdCategory, bdrProdCategory);
+        
 
-            // ⚡ Auto-updates SKU live when category changes!
-            AutoUpdateProductSKU();
-        }
-
-        private void CmbProdBrand_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (errProdBrand != null && errProdBrand.Visibility == Visibility.Visible)
-                HideError(errProdBrand, bdrProdBrand);
-
-            // ⚡ Auto-updates SKU live when brand changes!
-            AutoUpdateProductSKU();
-        }
-
-        private void TxtProdName_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (errProdName != null && errProdName.Visibility == Visibility.Visible && _nameRegex.IsMatch(txtProdName?.Text?.Trim() ?? ""))
-                HideError(errProdName, bdrProdName);
-
-            // ⚡ Auto-updates SKU live as you type product name!
-            AutoUpdateProductSKU();
-        }
 
         private void TxtProdCost_TextChanged(object sender, TextChangedEventArgs e)
         {

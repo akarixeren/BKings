@@ -149,12 +149,15 @@ namespace BikeKings_System.Views.Cashier
             targetView.Visibility = Visibility.Visible;
         }
 
+
         private void LoadPosCatalogBoxes()
         {
             _allPosCatalogItems.Clear();
 
-            // 1. Add all active products
-            var products = BikeKings_System.Database.InventoryService.GetProducts("", "All Stocks");
+            // 1. Load all active products
+            var products = BikeKings_System.Database.InventoryService
+                .GetProducts("", "All Stocks");
+
             foreach (var p in products)
             {
                 _allPosCatalogItems.Add(new POSSearchItem
@@ -170,10 +173,15 @@ namespace BikeKings_System.Views.Cashier
                 });
             }
 
-            // 2. Add all active services
+            // 2. Load all active services
             var services = CashierService.GetActiveServices();
+
             foreach (var s in services)
             {
+                // DEBUG: Check the saved image path
+                System.Diagnostics.Debug.WriteLine(
+                    $"SERVICE: {s.ServiceName} | IMAGE: {s.ImagePath}");
+
                 _allPosCatalogItems.Add(new POSSearchItem
                 {
                     ID = s.ServiceID,
@@ -182,13 +190,15 @@ namespace BikeKings_System.Views.Cashier
                     Code = "SRV",
                     Price = s.LaborFee,
                     Stock = 999,
-                    ImagePath = "",
+                    ImagePath = s.ImagePath,
                     CategoryName = "Labor Services"
                 });
             }
+
             LoadPosCategoryChips();
             FilterPosCatalog();
         }
+
 
         private void FilterPosCatalog()
         {
@@ -710,13 +720,19 @@ namespace BikeKings_System.Views.Cashier
 
         private void AddServiceToCart(int serviceId, string serviceName, decimal fee)
         {
-            var existing = _cart.FirstOrDefault(c => c.Description == serviceName && c.ItemType == "Service");
+            var existing = _cart.FirstOrDefault(c =>
+                c.ItemID == serviceId &&
+                c.ItemType == "Service");
+
             if (existing != null)
             {
                 existing.Quantity++;
             }
             else
             {
+                var service = CashierService.GetActiveServices()
+                    .FirstOrDefault(s => s.ServiceID == serviceId);
+
                 _cart.Add(new POSCartItem
                 {
                     ItemID = serviceId,
@@ -725,7 +741,8 @@ namespace BikeKings_System.Views.Cashier
                     Description = serviceName,
                     UnitPrice = fee,
                     Quantity = 1,
-                    StockAvailable = 999
+                    StockAvailable = 999,
+                    ImagePath = service?.ImagePath ?? ""
                 });
             }
 
@@ -960,71 +977,202 @@ namespace BikeKings_System.Views.Cashier
         // ══════════════════════════════════════════════════════
         // 8. COMPLETE TRANSACTION (CHECKOUT WITH VALIDATIONS)
         // ══════════════════════════════════════════════════════
+
         private void BtnCompleteTransaction_Click(object sender, RoutedEventArgs e)
         {
+            // 1. Validate Empty Cart
             if (_cart.Count == 0)
             {
-                MessageBox.Show("Cannot complete transaction. The cart is currently empty.", "Empty Cart", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    "Cannot complete transaction. The cart is currently empty.",
+                    "Empty Cart",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
                 return;
             }
 
-            // 🛡️ Pre-Checkout Stock Gate: verify live inventory for all products in cart
-            foreach (var cartItem in _cart.Where(x => x.ItemType == "Product"))
+            // 2. Check if cart contains a Labor Service
+            bool hasService = _cart.Any(x =>
+                x.ItemType == "Service");
+
+            string selectedMechanic =
+                cmbMechanic.SelectedItem?.ToString()?.Trim() ?? "Unassigned";
+
+            // 3. Required Fields for Labor Services
+            if (hasService)
             {
-                int liveStock = CashierService.GetProductStock(cartItem.ItemID);
-                if (cartItem.Quantity > liveStock)
+                // Require Assigned Mechanic
+                if (string.IsNullOrWhiteSpace(selectedMechanic) ||
+                    selectedMechanic.Equals(
+                        "Unassigned",
+                        StringComparison.OrdinalIgnoreCase))
                 {
-                    MessageBox.Show($"Cannot complete transaction.\n\nRequested quantity for '{cartItem.Description}' ({cartItem.Quantity} units) exceeds currently available stock ({liveStock} units in inventory).\n\nPlease adjust the cart quantity.", "Insufficient Stock", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(
+                        "Please assign a mechanic before completing the service transaction.",
+                        "Mechanic Required",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+
+                    cmbMechanic.Focus();
+                    cmbMechanic.IsDropDownOpen = true;
+                    return;
+                }
+
+                // Require Customer Name
+                string customerName = txtCustomerName.Text.Trim();
+
+                if (string.IsNullOrWhiteSpace(customerName) ||
+                    customerName.Equals(
+                        "Walk-in Customer",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show(
+                        "Please enter the customer's name for this service transaction.",
+                        "Customer Name Required",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+
+                    txtCustomerName.Focus();
+                    return;
+                }
+
+                // Require Motorcycle Brand
+                if (string.IsNullOrWhiteSpace(txtMcBrand.Text))
+                {
+                    MessageBox.Show(
+                        "Please enter the motorcycle brand before completing the service transaction.",
+                        "Motorcycle Brand Required",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+
+                    txtMcBrand.Focus();
+                    return;
+                }
+
+                // Require Motorcycle Model
+                if (string.IsNullOrWhiteSpace(txtMcModel.Text))
+                {
+                    MessageBox.Show(
+                        "Please enter the motorcycle model before completing the service transaction.",
+                        "Motorcycle Model Required",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+
+                    txtMcModel.Focus();
                     return;
                 }
             }
 
+            // 4. Pre-Checkout Stock Validation
+            foreach (var cartItem in _cart.Where(x =>
+                x.ItemType == "Product"))
+            {
+                int liveStock =
+                    CashierService.GetProductStock(cartItem.ItemID);
+
+                if (cartItem.Quantity > liveStock)
+                {
+                    MessageBox.Show(
+                        $"Cannot complete transaction.\n\n" +
+                        $"Requested quantity for '{cartItem.Description}' " +
+                        $"({cartItem.Quantity} units) exceeds currently " +
+                        $"available stock ({liveStock} units in inventory).\n\n" +
+                        "Please adjust the cart quantity.",
+                        "Insufficient Stock",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
+            // 5. Calculate Subtotal and Discount
             decimal subtotal = _cart.Sum(x => x.Subtotal);
-            decimal.TryParse(txtDiscount.Text.Trim(), out decimal discount);
+
+            decimal.TryParse(
+                txtDiscount.Text.Trim(),
+                out decimal discount);
 
             if (discount < 0)
             {
-                MessageBox.Show("Discount amount cannot be negative.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    "Discount amount cannot be negative.",
+                    "Validation Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
                 txtDiscount.Focus();
                 return;
             }
 
             if (discount > subtotal)
             {
-                MessageBox.Show($"Discount amount (₱{discount:N2}) cannot exceed the subtotal (₱{subtotal:N2}).", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    $"Discount amount (₱{discount:N2}) cannot exceed " +
+                    $"the subtotal (₱{subtotal:N2}).",
+                    "Validation Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
                 txtDiscount.Focus();
                 return;
             }
 
             decimal grandTotal = Math.Max(0, subtotal - discount);
-            string paymentMethod = (cmbPaymentMethod.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Cash";
-            decimal.TryParse(txtAmountTendered.Text.Trim(), out decimal tendered);
 
-            // 🛡️ Enforce & Validate Reference Number for E-Wallet (Regex check)
+            // 6. Payment Details
+            string paymentMethod =
+                (cmbPaymentMethod.SelectedItem as ComboBoxItem)?
+                .Content?.ToString() ?? "Cash";
+
+            decimal.TryParse(
+                txtAmountTendered.Text.Trim(),
+                out decimal tendered);
+
+            // 7. Validate E-Wallet Reference Number
             string rawRef = txtReferenceNo?.Text?.Trim() ?? "";
-            string refNo = rawRef.Replace(" ", ""); // Strip spaces from GCash/Maya SMS pastes
+            string refNo = rawRef.Replace(" ", "");
 
             if (paymentMethod == "E-Wallet")
             {
                 if (string.IsNullOrWhiteSpace(refNo))
                 {
-                    MessageBox.Show("Please enter the E-Wallet reference number to complete this transaction.", "Reference Number Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(
+                        "Please enter the E-Wallet reference number to complete this transaction.",
+                        "Reference Number Required",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+
                     txtReferenceNo?.Focus();
                     return;
                 }
 
-                // Minimum 6 to 30 alphanumeric characters / hyphens (case-insensitive for GCash/Maya)
                 if (!Regex.IsMatch(refNo, @"^[a-zA-Z0-9\-]{6,30}$"))
                 {
-                    MessageBox.Show("Invalid reference number format.\n\nE-Wallet reference numbers must be between 6 and 30 letters/numbers (e.g. 102938475612 or MP-981234).", "Invalid Reference Number", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(
+                        "Invalid reference number format.\n\n" +
+                        "E-Wallet reference numbers must be between " +
+                        "6 and 30 letters/numbers " +
+                        "(e.g. 102938475612 or MP-981234).",
+                        "Invalid Reference Number",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+
                     txtReferenceNo?.Focus();
                     return;
                 }
-            } 
+            }
 
+            // 8. Validate Cash Payment
             if (paymentMethod == "Cash" && tendered < grandTotal)
             {
-                MessageBox.Show($"Insufficient cash tendered.\nGrand Total: ₱{grandTotal:N2}\nAmount Tendered: ₱{tendered:N2}", "Payment Incomplete", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    $"Insufficient cash tendered.\n" +
+                    $"Grand Total: ₱{grandTotal:N2}\n" +
+                    $"Amount Tendered: ₱{tendered:N2}",
+                    "Payment Incomplete",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
                 txtAmountTendered.Focus();
                 return;
             }
@@ -1034,64 +1182,118 @@ namespace BikeKings_System.Views.Cashier
                 tendered = grandTotal;
             }
 
-            // Validate Contact Number format if entered
+            // 9. Validate Contact Number (Optional)
             string contactNo = txtContactNo.Text.Trim();
-            if (!string.IsNullOrWhiteSpace(contactNo) && !Regex.IsMatch(contactNo, @"^09\d{9}$"))
+
+            if (!string.IsNullOrWhiteSpace(contactNo) &&
+                !Regex.IsMatch(contactNo, @"^09\d{9}$"))
             {
-                MessageBox.Show("Invalid contact number format. Please enter a valid 11-digit mobile number starting with '09' (e.g. 09171234567).", "Invalid Contact Number", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    "Invalid contact number format. Please enter a valid " +
+                    "11-digit mobile number starting with '09' " +
+                    "(e.g. 09171234567).",
+                    "Invalid Contact Number",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
                 txtContactNo.Focus();
                 return;
             }
 
-            // Validate Customer Name (Supports international and Filipino letters with ñ, spaces, and hyphens)
-            string custName = string.IsNullOrWhiteSpace(txtCustomerName.Text.Trim()) ? "Walk-in Customer" : txtCustomerName.Text.Trim();
-            if (custName != "Walk-in Customer" && !Regex.IsMatch(custName, @"^[\p{L}\s.\-']{2,100}$"))
+            // 10. Validate Customer Name
+            string custName =
+                string.IsNullOrWhiteSpace(txtCustomerName.Text.Trim())
+                ? "Walk-in Customer"
+                : txtCustomerName.Text.Trim();
+
+            if (custName != "Walk-in Customer" &&
+                !Regex.IsMatch(
+                    custName,
+                    @"^[\p{L}\s.\-']{2,100}$"))
             {
-                MessageBox.Show("Please enter a valid customer name (letters, spaces, and hyphens only).", "Invalid Customer Name", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    "Please enter a valid customer name " +
+                    "(letters, spaces, and hyphens only).",
+                    "Invalid Customer Name",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
                 txtCustomerName.Focus();
                 return;
             }
 
-            // Validate Motorcycle Plate Number if entered (LTO formats: 123-ABC, AB 1234, 123ABC)
+            // 11. Validate Motorcycle Plate Number (Optional, must be exactly 6 alphanumeric characters if entered)
             string plateNo = txtPlateNo.Text.Trim().ToUpper();
-            if (!string.IsNullOrWhiteSpace(plateNo) && !Regex.IsMatch(plateNo, @"^[A-Z0-9\s\-]{4,10}$"))
+
+            if (!string.IsNullOrWhiteSpace(plateNo) && !Regex.IsMatch(plateNo, @"^[A-Z0-9]{6}$"))
             {
-                MessageBox.Show("Invalid plate number format.\n\nPlease enter a valid vehicle plate (e.g. 123-ABC, AB 1234, or 123ABC).", "Invalid Plate Number", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    "Invalid plate number format.\n\n" +
+                    "Plate number must be exactly 6 letters and numbers (e.g., 123ABC or ABC123).",
+                    "Invalid Plate Number",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
                 txtPlateNo.Focus();
                 return;
             }
 
+            // 12. Validate Motorcycle Brand and Model
             string mcBrand = txtMcBrand.Text.Trim();
             string mcModel = txtMcModel.Text.Trim();
 
-            // Validate Vehicle Brand & Model if entered
-            var vehicleRegex = new Regex(@"^[a-zA-Z0-9\s.\-/#()]{2,50}$");
-            if (!string.IsNullOrWhiteSpace(mcBrand) && !vehicleRegex.IsMatch(mcBrand))
+            var vehicleRegex =
+                new Regex(@"^[a-zA-Z0-9\s.\-/#()]{2,50}$");
+
+            if (!string.IsNullOrWhiteSpace(mcBrand) &&
+                !vehicleRegex.IsMatch(mcBrand))
             {
-                MessageBox.Show("Please enter a valid motorcycle brand (e.g. Yamaha, Honda, Suzuki).", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    "Please enter a valid motorcycle brand " +
+                    "(e.g. Yamaha, Honda, Suzuki).",
+                    "Validation Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
                 txtMcBrand.Focus();
                 return;
             }
-            if (!string.IsNullOrWhiteSpace(mcModel) && !vehicleRegex.IsMatch(mcModel))
+
+            if (!string.IsNullOrWhiteSpace(mcModel) &&
+                !vehicleRegex.IsMatch(mcModel))
             {
-                MessageBox.Show("Please enter a valid motorcycle model (e.g. NMAX 155, Click 125i, Aerox).", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    "Please enter a valid motorcycle model " +
+                    "(e.g. NMAX 155, Click 125i, Aerox).",
+                    "Validation Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
                 txtMcModel.Focus();
                 return;
             }
 
-            string mechanic = cmbMechanic.SelectedItem?.ToString() ?? "Unassigned";
+            // 13. Mechanic Information
+            string mechanic = selectedMechanic;
 
-            int cashierId = SessionHelper.CurrentUser?.UserID ?? 2;
-            string cashierName = SessionHelper.CurrentUser?.FullName ?? "Ruby";
-            string cashierRole = SessionHelper.CurrentUser?.Role ?? "Cashier";
+            // 14. Cashier Information
+            int cashierId =
+                SessionHelper.CurrentUser?.UserID ?? 2;
 
+            string cashierName =
+                SessionHelper.CurrentUser?.FullName ?? "Ruby";
 
+            string cashierRole =
+                SessionHelper.CurrentUser?.Role ?? "Cashier";
 
-            // Format Payment Method to include Ref No for records & receipts
-            string finalPaymentMethod = paymentMethod == "E-Wallet" && !string.IsNullOrWhiteSpace(refNo)
+            // 15. Format Payment Method
+            string finalPaymentMethod =
+                paymentMethod == "E-Wallet" &&
+                !string.IsNullOrWhiteSpace(refNo)
                 ? $"E-Wallet ({refNo})"
                 : paymentMethod;
 
+            // 16. Process Checkout
             var result = CashierService.ProcessCheckout(
                 _cart.ToList(),
                 custName,
@@ -1108,15 +1310,23 @@ namespace BikeKings_System.Views.Cashier
                 cashierRole
             );
 
+            // 17. Checkout Result
             if (result.Success)
             {
-                MessageBox.Show($"✅ Transaction #{result.ReferenceNo} completed successfully!", "Transaction Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(
+                    $"Transaction #{result.ReferenceNo} completed successfully!",
+                    "Transaction Complete",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
 
-                // Show Official Receipt Modal immediately
-                ShowReceiptModal(result.ReferenceNo, result.TransType);
+                // Show Official Receipt
+                ShowReceiptModal(
+                    result.ReferenceNo,
+                    result.TransType);
 
-                // Reset Form
+                // 18. Reset Form
                 _cart.Clear();
+
                 txtCustomerName.Text = "Walk-in Customer";
                 txtContactNo.Text = "";
                 txtMcBrand.Text = "";
@@ -1124,21 +1334,31 @@ namespace BikeKings_System.Views.Cashier
                 txtPlateNo.Text = "";
                 txtDiscount.Text = "0.00";
                 txtAmountTendered.Text = "0.00";
-                if (txtReferenceNo != null) txtReferenceNo.Text = "";
-                if (pnlReferenceNo != null) pnlReferenceNo.Visibility = Visibility.Collapsed;
+
+                if (txtReferenceNo != null)
+                    txtReferenceNo.Text = "";
+
+                if (pnlReferenceNo != null)
+                    pnlReferenceNo.Visibility = Visibility.Collapsed;
+
                 cmbPaymentMethod.SelectedIndex = 0;
                 cmbMechanic.SelectedIndex = 0;
 
-                // Refresh Ledger & live product stocks
+                // 19. Refresh Data
                 ApplyLedgerFilters();
                 LoadPosCatalogBoxes();
                 LoadInventoryCatalog();
             }
             else
             {
-                MessageBox.Show($"Checkout Error:\n{result.ErrorMessage}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    $"Checkout Error:\n{result.ErrorMessage}",
+                    "Database Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
         }
+
 
         // ══════════════════════════════════════════════════════
         // 9. PAST TRANSACTIONS LEDGER & FILTERS (ASYNC & VIRTUALIZED)

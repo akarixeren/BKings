@@ -198,7 +198,7 @@ namespace BikeKings_System.Database
             {
                 using var conn = DatabaseHelper.GetConnection();
                 conn.Open();
-                using var da = new SqlDataAdapter("SELECT ServiceID, ServiceName, LaborFee FROM Services WHERE IsActive = 1 ORDER BY ServiceName", conn);
+                using var da = new SqlDataAdapter("SELECT ServiceID, ServiceName, LaborFee, ImagePath FROM Services WHERE IsActive = 1 ORDER BY ServiceName", conn);
                 da.Fill(dt);
             }
             catch { }
@@ -234,6 +234,22 @@ namespace BikeKings_System.Database
             catch { return false; }
         }
 
+        public static bool UpdateServiceImage(
+    int serviceId, string imagePath)
+        {
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+
+            using var cmd = new SqlCommand(
+                @"UPDATE Services
+          SET ImagePath = @image
+          WHERE ServiceID = @id", conn);
+
+            cmd.Parameters.AddWithValue("@image", imagePath);
+            cmd.Parameters.AddWithValue("@id", serviceId);
+
+            return cmd.ExecuteNonQuery() > 0;
+        }
         public static bool DeleteService(int id)
         {
             try

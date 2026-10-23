@@ -203,6 +203,8 @@ namespace BikeKings_System.Views.Admin
             if (pnlSalesView != null) pnlSalesView.Visibility = Visibility.Collapsed;
             if (pnlBackupView != null) pnlBackupView.Visibility = Visibility.Collapsed;
             if (pnlProfileView != null) pnlProfileView.Visibility = Visibility.Collapsed;
+
+            if (btnExportDashboard != null) btnExportDashboard.Visibility = Visibility.Collapsed;
         }
 
         public void Nav_Click(object sender, RoutedEventArgs e)
@@ -232,6 +234,7 @@ namespace BikeKings_System.Views.Admin
                     case "navDashboard":
                         lblHeaderTitle.Text = "Dashboard";
                         pnlDashboardView.Visibility = Visibility.Visible;
+                        if (btnExportDashboard != null) btnExportDashboard.Visibility = Visibility.Visible;
                         LoadLiveDashboardData();
                         break;
                     case "navSales":

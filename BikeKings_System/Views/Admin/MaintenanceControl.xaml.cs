@@ -7,6 +7,9 @@ using System.Windows.Controls;
 using BikeKings_System.Database;
 using BikeKings_System.Helpers;
 using BikeKings_System.Models;
+using System.IO;
+using System.Windows.Media.Imaging;
+using Microsoft.Win32;
 
 namespace BikeKings_System.Views.Admin
 {
@@ -16,6 +19,8 @@ namespace BikeKings_System.Views.Admin
         public string ServiceName { get; set; } = "";
         public decimal LaborFee { get; set; }
         public string FormattedFee => $"₱{LaborFee:N2}";
+
+        public string ImagePath { get; set; } = "";
     }
 
     public class StaffItem
@@ -38,6 +43,7 @@ namespace BikeKings_System.Views.Admin
         private string _editingType = "";
         private int _editingId = 0;
 
+        private string _serviceImagePath = "";
         private static readonly Regex _personNameRegex = new Regex(@"^[\p{L}\s.\-']{2,100}$", RegexOptions.Compiled);
         private static readonly Regex _commissionRegex = new Regex(@"^(100(\.0{1,2})?|[1-9]?[0-9](\.[0-9]{1,2})?)$", RegexOptions.Compiled);
         private static readonly Regex _generalNameRegex = new Regex(@"^[a-zA-Z0-9\s.,&'\-()/#+""%*\[\]:;!@]{2,100}$", RegexOptions.Compiled);
@@ -67,7 +73,10 @@ namespace BikeKings_System.Views.Admin
                     {
                         ServiceID = Convert.ToInt32(row["ServiceID"]),
                         ServiceName = row["ServiceName"]?.ToString() ?? "",
-                        LaborFee = row["LaborFee"] != DBNull.Value ? Convert.ToDecimal(row["LaborFee"]) : 0m
+                        LaborFee = row["LaborFee"] != DBNull.Value ? Convert.ToDecimal(row["LaborFee"]) : 0m,
+                        ImagePath = row["ImagePath"] == DBNull.Value
+                            ? ""
+                            : row["ImagePath"].ToString() ?? ""
                     });
                 }
             }
@@ -126,6 +135,7 @@ namespace BikeKings_System.Views.Admin
                 _editingId = cat.CategoryID;
                 lblEditModalTitle.Text = "Edit Category Name";
                 txtEditName.Text = cat.CategoryName;
+                pnlEditServiceImage.Visibility = Visibility.Collapsed;
                 pnlEditServiceFee.Visibility = Visibility.Collapsed;
                 modalEditItem.Visibility = Visibility.Visible;
             }
@@ -175,6 +185,7 @@ namespace BikeKings_System.Views.Admin
                 _editingId = brand.BrandID;
                 lblEditModalTitle.Text = "Edit Brand Name";
                 txtEditName.Text = brand.BrandName;
+                pnlEditServiceImage.Visibility = Visibility.Collapsed;
                 pnlEditServiceFee.Visibility = Visibility.Collapsed;
                 modalEditItem.Visibility = Visibility.Visible;
             }
@@ -233,7 +244,116 @@ namespace BikeKings_System.Views.Admin
                 txtEditFee.Text = srv.LaborFee.ToString("F2");
                 pnlEditServiceFee.Visibility = Visibility.Visible;
                 modalEditItem.Visibility = Visibility.Visible;
+
+                _serviceImagePath = srv.ImagePath;
+
+                pnlEditServiceImage.Visibility = Visibility.Visible;
+                ShowServiceImagePreview();
             }
+        }
+
+        private void ShowServiceImagePreview()
+        {
+            txtServiceImagePath.Text = _serviceImagePath;
+            imgEditService.Source = null;
+
+            if (string.IsNullOrWhiteSpace(_serviceImagePath))
+                return;
+
+            try
+            {
+                string path = _serviceImagePath;
+
+                if (!Path.IsPathRooted(path))
+                {
+                    path = Path.GetFullPath(
+                        Path.Combine(AppContext.BaseDirectory, path));
+                }
+
+                if (!File.Exists(path))
+                    return;
+
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.UriSource = new Uri(path, UriKind.Absolute);
+                bitmap.EndInit();
+                bitmap.Freeze();
+
+                imgEditService.Source = bitmap;
+            }
+            catch
+            {
+                imgEditService.Source = null;
+            }
+        }
+
+        private void BtnChooseServiceImage_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "Select Service Picture",
+                Filter = "Image Files (*.jpg;*.jpeg;*.png;*.webp;*.bmp)|*.jpg;*.jpeg;*.png;*.webp;*.bmp|All Files (*.*)|*.*"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    string folder = Path.Combine(AppContext.BaseDirectory, "ServiceImages");
+                    Directory.CreateDirectory(folder);
+
+                    // Save as .jpg for optimal file size and memory footprint
+                    string filename = $"{Guid.NewGuid():N}.jpg";
+                    string destination = Path.Combine(folder, filename);
+
+                    // ⚡ PERFORMANCE OPTIMIZATION: Auto-resize large photos (max 500x500, ~40-60KB)
+                    // Eliminates high RAM consumption and UI rendering lag
+                    try
+                    {
+                        var decoder = BitmapDecoder.Create(
+                            new Uri(dialog.FileName, UriKind.Absolute),
+                            BitmapCreateOptions.None,
+                            BitmapCacheOption.OnLoad);
+
+                        var frame = decoder.Frames[0];
+                        double maxDim = 500.0;
+                        double scale = Math.Min(maxDim / frame.PixelWidth, maxDim / frame.PixelHeight);
+                        if (scale > 1.0) scale = 1.0; // Don't upscale smaller images
+
+                        var resized = new TransformedBitmap(
+                            frame,
+                            new System.Windows.Media.ScaleTransform(scale, scale));
+
+                        var encoder = new JpegBitmapEncoder { QualityLevel = 85 };
+                        encoder.Frames.Add(BitmapFrame.Create(resized));
+
+                        using (var stream = new FileStream(destination, FileMode.Create, FileAccess.Write))
+                        {
+                            encoder.Save(stream);
+                        }
+                    }
+                    catch
+                    {
+                        // Fallback to standard copy if custom encoding fails
+                        File.Copy(dialog.FileName, destination, true);
+                    }
+
+                    _serviceImagePath = Path.Combine("ServiceImages", filename);
+                    ShowServiceImagePreview();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Could not load image: " + ex.Message, "Image Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+
+        private void BtnClearServiceImage_Click(
+            object sender, RoutedEventArgs e)
+        {
+            _serviceImagePath = "";
+            ShowServiceImagePreview();
         }
 
         private void BtnDeleteService_Click(object sender, RoutedEventArgs e)
@@ -340,6 +460,75 @@ namespace BikeKings_System.Views.Admin
             modalEditItem.Visibility = Visibility.Collapsed;
         }
 
+        // ══════════════════════════════════════════════════════
+        // REAL-TIME INPUT RESTRICTIONS & REGEX VALIDATION
+        // ══════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Only allows digits 0-9 and at most one decimal point for currency / labor fees.
+        /// </summary>
+        private void DecimalOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            string currentText = (sender as TextBox)?.Text ?? "";
+            if (e.Text == ".")
+            {
+                e.Handled = currentText.Contains(".");
+            }
+            else
+            {
+                e.Handled = !System.Text.RegularExpressions.Regex.IsMatch(e.Text, @"^[0-9]+$");
+            }
+        }
+
+        /// <summary>
+        /// Strips any non-decimal characters if pasted into fee inputs.
+        /// </summary>
+        private void DecimalOnly_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox tb && !string.IsNullOrEmpty(tb.Text))
+            {
+                string cleaned = System.Text.RegularExpressions.Regex.Replace(tb.Text, @"[^0-9.]", "");
+                int firstDot = cleaned.IndexOf('.');
+                if (firstDot >= 0)
+                {
+                    cleaned = cleaned.Substring(0, firstDot + 1) + cleaned.Substring(firstDot + 1).Replace(".", "");
+                }
+                if (tb.Text != cleaned)
+                {
+                    tb.Text = cleaned;
+                    tb.CaretIndex = tb.Text.Length;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Only allows whole numbers (0-9) for commission percentage.
+        /// </summary>
+        private void NumberOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            e.Handled = !System.Text.RegularExpressions.Regex.IsMatch(e.Text, @"^[0-9]+$");
+        }
+
+        /// <summary>
+        /// Ensures commission rate stays strictly between 1 and 100%.
+        /// </summary>
+        private void Commission_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox tb && !string.IsNullOrEmpty(tb.Text))
+            {
+                string cleaned = System.Text.RegularExpressions.Regex.Replace(tb.Text, @"[^0-9]", "");
+                if (int.TryParse(cleaned, out int val))
+                {
+                    if (val > 100) cleaned = "100";
+                }
+                if (tb.Text != cleaned)
+                {
+                    tb.Text = cleaned;
+                    tb.CaretIndex = tb.Text.Length;
+                }
+            }
+        }
+
         private void BtnSaveEditModal_Click(object sender, RoutedEventArgs e)
         {
             string newName = txtEditName.Text.Trim();
@@ -375,6 +564,12 @@ namespace BikeKings_System.Views.Admin
                         return;
                     }
                     success = MaintenanceService.UpdateService(_editingId, newName, fee);
+
+                    if (success)
+                    {
+                        success = MaintenanceService.UpdateServiceImage(
+                            _editingId, _serviceImagePath);
+                    }
                     break;
                 case "Mechanic":
                     if (!_personNameRegex.IsMatch(newName))

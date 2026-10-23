@@ -18,7 +18,7 @@ namespace BikeKings_System.Database
 
         public string ImagePath { get; set; } = "";
         public string CategoryIcon => Helpers.ProductImageHelper.GetCategoryIcon(Description, ItemType);
-        public string DisplayImage => Helpers.ProductImageHelper.ResolveImagePath(ImagePath);
+        public string DisplayImage => Helpers.ProductImageHelper.ResolveImagePath(ImagePath, Description, ItemType);
         public bool HasImage => !string.IsNullOrWhiteSpace(DisplayImage);
 
         public int Quantity
@@ -79,8 +79,11 @@ namespace BikeKings_System.Database
         public int ServiceID { get; set; }
         public string ServiceName { get; set; } = "";
         public decimal LaborFee { get; set; }
+
         public string FormattedFee => $"₱{LaborFee:N2}";
         public string DisplayChip => $"🔧 {ServiceName} ({FormattedFee})";
+
+        public string ImagePath { get; set; } = "";
     }
 
     public class DailyAuditReport
@@ -118,7 +121,11 @@ namespace BikeKings_System.Database
             {
                 using var conn = DatabaseHelper.GetConnection();
                 conn.Open();
-                string sql = "SELECT ServiceID, ServiceName, LaborFee FROM Services WHERE IsActive = 1 ORDER BY ServiceName";
+                string sql = @"SELECT ServiceID, ServiceName,
+               LaborFee, ImagePath
+               FROM Services
+               WHERE IsActive = 1
+               ORDER BY ServiceName";
                 using var cmd = new SqlCommand(sql, conn);
                 using var r = cmd.ExecuteReader();
                 while (r.Read())
@@ -127,7 +134,10 @@ namespace BikeKings_System.Database
                     {
                         ServiceID = Convert.ToInt32(r["ServiceID"]),
                         ServiceName = r["ServiceName"].ToString() ?? "",
-                        LaborFee = Convert.ToDecimal(r["LaborFee"])
+                        LaborFee = Convert.ToDecimal(r["LaborFee"]),
+                        ImagePath = r["ImagePath"] == DBNull.Value
+    ? ""
+    : r["ImagePath"].ToString() ?? ""
                     });
                 }
             }
@@ -195,30 +205,36 @@ namespace BikeKings_System.Database
                     }
                 }
 
+
                 // 2. Search Services
                 string srvSql = @"
-                    SELECT TOP 10 ServiceID, ServiceName, LaborFee
+                    SELECT TOP 10 ServiceID, ServiceName, LaborFee,
+                           ISNULL(ImagePath, '') AS ImagePath
                     FROM Services
                     WHERE IsActive = 1 AND ServiceName LIKE @term
                     ORDER BY ServiceName";
 
-                using (var cmdSrv = new SqlCommand(srvSql, conn))
-                {
-                    cmdSrv.Parameters.AddWithValue("@term", $"%{term}%");
-                    using var rSrv = cmdSrv.ExecuteReader();
-                    while (rSrv.Read())
-                    {
-                        results.Add(new POSSearchItem
-                        {
-                            ID = Convert.ToInt32(rSrv["ServiceID"]),
-                            ItemType = "Service",
-                            Name = rSrv["ServiceName"].ToString() ?? "",
-                            Code = "SRV",
-                            Price = Convert.ToDecimal(rSrv["LaborFee"]),
-                            Stock = 999
-                        });
-                    }
-                }
+                 using (var cmdSrv = new SqlCommand(srvSql, conn))
+                                {
+                        cmdSrv.Parameters.AddWithValue("@term", $"%{term}%");
+
+                        using var rSrv = cmdSrv.ExecuteReader();
+
+                         while (rSrv.Read())
+                                    {
+                              results.Add(new POSSearchItem
+                                        {
+                                     ID = Convert.ToInt32(rSrv["ServiceID"]),
+                                        ItemType = "Service",
+                                        Name = rSrv["ServiceName"].ToString() ?? "",
+                                        Code = "SRV",
+                                        Price = Convert.ToDecimal(rSrv["LaborFee"]),
+                                        Stock = 999,
+                                        ImagePath = rSrv["ImagePath"].ToString() ?? ""
+                              });
+                         }
+                 }
+
             }
             catch { }
 

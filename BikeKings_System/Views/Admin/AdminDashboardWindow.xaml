@@ -223,7 +223,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Button Click="BtnExport_Click" Content="📥 Export CSV" Background="#221C2B" Foreground="#E2E8F0" BorderBrush="#352C44" BorderThickness="1" Height="34" Padding="14,0" Cursor="Hand">
+                        <Button x:Name="btnExportDashboard" Click="BtnExport_Click" Content="📥 Export CSV" Background="#221C2B" Foreground="#E2E8F0" BorderBrush="#352C44" BorderThickness="1" Height="34" Padding="14,0" Cursor="Hand">
                             <Button.Resources>
                                 <Style TargetType="Border">
                                     <Setter Property="CornerRadius" Value="6"/>

@@ -264,7 +264,7 @@
                             </Border>
 
                             <Border Grid.Column="2" Background="#110E17" BorderBrush="#2A2236" BorderThickness="1" CornerRadius="6" Height="36" Padding="10,0">
-                                <TextBox x:Name="txtLaborFee" Text="0.00" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#FFFFFF" VerticalAlignment="Center" FontSize="12"/>
+                                <TextBox x:Name="txtLaborFee" Text="0.00" PreviewTextInput="DecimalOnly_PreviewTextInput" TextChanged="DecimalOnly_TextChanged" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#FFFFFF" VerticalAlignment="Center" FontSize="12"/>
                             </Border>
 
                             <Button Grid.Column="4" Content="Add" Height="36" Background="#E63956" Foreground="#FFFFFF" FontWeight="Bold" FontSize="12" BorderThickness="0" Cursor="Hand" Click="BtnAddService_Click">
@@ -350,7 +350,7 @@
                             </Border>
 
                             <Border Grid.Column="2" Background="#110E17" BorderBrush="#2A2236" BorderThickness="1" CornerRadius="6" Height="36" Padding="6,0" ToolTip="Commission Rate (%)">
-                                <TextBox x:Name="txtMechCommission" Text="80" HorizontalContentAlignment="Center" Background="Transparent" BorderThickness="0" Foreground="#10B981" FontWeight="Bold" CaretBrush="#FFFFFF" VerticalAlignment="Center" FontSize="12"/>
+                                <TextBox x:Name="txtMechCommission" Text="80" MaxLength="3" PreviewTextInput="NumberOnly_PreviewTextInput" TextChanged="Commission_TextChanged" HorizontalContentAlignment="Center" Background="Transparent" BorderThickness="0" Foreground="#10B981" FontWeight="Bold" CaretBrush="#FFFFFF" VerticalAlignment="Center" FontSize="12"/>
                             </Border>
 
                             <Button Grid.Column="4" Content="Add" Height="36" Background="#10B981" Foreground="#FFFFFF" FontWeight="Bold" FontSize="12" BorderThickness="0" Cursor="Hand" Click="BtnAddMechanic_Click">
@@ -482,15 +482,65 @@
                     <StackPanel x:Name="pnlEditServiceFee" Visibility="Collapsed" Margin="0,0,0,14">
                         <TextBlock Text="Labor Fee (₱)" FontSize="11" Foreground="#8C849C" Margin="0,0,0,6"/>
                         <Border Background="#110E17" BorderBrush="#2A2236" BorderThickness="1" CornerRadius="6" Height="36" Padding="8,0">
-                            <TextBox x:Name="txtEditFee" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#FFFFFF" VerticalAlignment="Center"/>
+                            <TextBox x:Name="txtEditFee" PreviewTextInput="DecimalOnly_PreviewTextInput" TextChanged="DecimalOnly_TextChanged" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#FFFFFF" VerticalAlignment="Center"/>
                         </Border>
                     </StackPanel>
 
+                    <!-- Service Picture Editor -->
+                    <StackPanel x:Name="pnlEditServiceImage"
+            Visibility="Collapsed"
+            Margin="0,0,0,14">
+
+                        <TextBlock Text="Service Picture / Photo"
+               Foreground="#9C95AD"
+               FontSize="11"
+               Margin="0,0,0,8"/>
+
+                        <Border Background="#110E17"
+            BorderBrush="#2A2236"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="10">
+
+                            <StackPanel>
+                                <Image x:Name="imgEditService"
+                   Width="150"
+                   Height="95"
+                   Stretch="Uniform"
+                   Margin="0,0,0,10"/>
+
+                                <TextBlock x:Name="txtServiceImagePath"
+                       Foreground="#8C849C"
+                       FontSize="10"
+                       TextTrimming="CharacterEllipsis"
+                       Margin="0,0,0,8"/>
+
+                                <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Center">
+
+                                    <Button Content="Choose Image..."
+                        Click="BtnChooseServiceImage_Click"
+                        Background="#262135"
+                        Foreground="White"
+                        Padding="12,8"
+                        Margin="0,0,8,0"/>
+
+                                    <Button Content="Clear"
+                        Click="BtnClearServiceImage_Click"
+                        Background="#3E161C"
+                        Foreground="#FF7D91"
+                        Padding="12,8"/>
+
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                    
                     <!-- Extra Field for Mechanic Commission % -->
                     <StackPanel x:Name="pnlEditMechCommission" Visibility="Collapsed" Margin="0,0,0,14">
                         <TextBlock Text="Commission Rate (%)" FontSize="11" Foreground="#8C849C" Margin="0,0,0,6"/>
                         <Border Background="#110E17" BorderBrush="#2A2236" BorderThickness="1" CornerRadius="6" Height="36" Padding="8,0">
-                            <TextBox x:Name="txtEditCommission" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#FFFFFF" VerticalAlignment="Center"/>
+                            <TextBox x:Name="txtEditCommission" MaxLength="3" PreviewTextInput="NumberOnly_PreviewTextInput" TextChanged="Commission_TextChanged" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#FFFFFF" VerticalAlignment="Center"/>
                         </Border>
                     </StackPanel>
 

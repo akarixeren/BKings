@@ -61,7 +61,7 @@
                     <ComboBoxItem Content="All Roles" IsSelected="True"/>
                     <ComboBoxItem Content="Admin"/>
                     <ComboBoxItem Content="Cashier"/>
-                    <ComboBoxItem Content="StoreClerk"/>
+                    <ComboBoxItem Content="InventoryManager"/>
                 </ComboBox>
                 <!-- 4. Date Range Filter -->
                 <ComboBox x:Name="cmbDateFilter" Height="36" Width="130" Background="#110E17" Foreground="#FFFFFF" BorderBrush="#2A2236" Margin="0,0,10,0" SelectionChanged="CmbDateFilter_SelectionChanged">
