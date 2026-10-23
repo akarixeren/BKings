@@ -1,0 +1,14 @@
+
+# Visual Studio temporary files
+.vs/
+**/.vs/
+
+# Build files
+bin/
+obj/
+**/bin/
+**/obj/
+
+# User-specific files
+*.user
+*.suo
